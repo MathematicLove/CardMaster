@@ -1,0 +1,117 @@
+databaseChangeLog:
+  - changeSet:
+      id: 003-transfers
+      author: кощей бесстыжий ayzek
+      changes:
+        - createTable:
+            tableName: transfers
+            remarks: "Переводы между своими картами"
+            columns:
+              - column:
+                  name: id
+                  type: BIGINT
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    primaryKeyName: pk_transfers
+                    nullable: false
+              - column:
+                  name: from_card_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+              - column:
+                  name: to_card_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+              - column:
+                  name: amount
+                  type: "NUMERIC(18,2)"
+                  constraints:
+                    nullable: false
+              - column:
+                  name: success
+                  type: BOOLEAN
+                  defaultValueBoolean: true
+                  constraints:
+                    nullable: false
+              - column:
+                  name: created_at
+                  type: TIMESTAMPTZ
+                  defaultValueComputed: CURRENT_TIMESTAMP
+                  constraints:
+                    nullable: false
+              - column:
+                  name: updated_at
+                  type: TIMESTAMPTZ
+                  defaultValueComputed: CURRENT_TIMESTAMP
+                  constraints:
+                    nullable: false
+
+        - addForeignKeyConstraint:
+            baseTableName: transfers
+            baseColumnNames: from_card_id
+            referencedTableName: cards
+            referencedColumnNames: id
+            onDelete: RESTRICT
+            constraintName: fk_transfers_from
+
+        - addForeignKeyConstraint:
+            baseTableName: transfers
+            baseColumnNames: to_card_id
+            referencedTableName: cards
+            referencedColumnNames: id
+            onDelete: RESTRICT
+            constraintName: fk_transfers_to
+
+        - createIndex:
+            tableName: transfers
+            indexName: ix_transfers_from_card
+            columns:
+              - column:
+                  name: from_card_id
+        - createIndex:
+            tableName: transfers
+            indexName: ix_transfers_to_card
+            columns:
+              - column:
+                  name: to_card_id
+        - createIndex:
+            tableName: transfers
+            indexName: ix_transfers_created_at
+            columns:
+              - column:
+                  name: created_at
+
+        - sql:
+            dbms: postgresql
+            splitStatements: false
+            sql: |
+              ALTER TABLE transfers
+              ADD CONSTRAINT chk_transfers_amount_pos CHECK (amount > 0);
+        - sql:
+            dbms: postgresql
+            splitStatements: false
+            sql: |
+              ALTER TABLE transfers
+              ADD CONSTRAINT chk_transfers_not_same_card CHECK (from_card_id <> to_card_id);
+
+      rollback:
+        - sql:
+            dbms: postgresql
+            splitStatements: false
+            sql: |
+              ALTER TABLE transfers
+                DROP CONSTRAINT IF EXISTS chk_transfers_not_same_card,
+                DROP CONSTRAINT IF EXISTS chk_transfers_amount_pos;
+        - dropIndex: { tableName: transfers, indexName: ix_transfers_created_at }
+        - dropIndex: { tableName: transfers, indexName: ix_transfers_to_card }
+        - dropIndex: { tableName: transfers, indexName: ix_transfers_from_card }
+        - dropForeignKeyConstraint:
+            baseTableName: transfers
+            constraintName: fk_transfers_to
+        - dropForeignKeyConstraint:
+            baseTableName: transfers
+            constraintName: fk_transfers_from
+        - dropTable: { tableName: transfers }

@@ -1,0 +1,44 @@
+services:
+  db:
+    image: postgres:15
+    container_name: bankcards-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: CardMaster
+      POSTGRES_USER: ayzek
+      POSTGRES_PASSWORD: "123"
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  app:
+    build:
+      context: .
+      platforms:
+        - linux/arm64
+      dockerfile: Dockerfile
+    container_name: bankcards-app
+    depends_on:
+      - db
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/CardMaster
+      SPRING_DATASOURCE_USERNAME: ayzek
+      SPRING_DATASOURCE_PASSWORD: "123"
+
+      SPRING_JPA_HIBERNATE_DDL_AUTO: validate
+
+      SPRING_SECURITY_USER_NAME: AyzeksBank
+      SPRING_SECURITY_USER_PASSWORD: IuseHaskellBTW
+      SPRING_SECURITY_USER_ROLES: ADMIN
+
+      APP_JWT_SECRET: 8nswcQpoE3eTzWmknTdcaxiaSlbM0VpqDt7hD0QXGGA=
+      APP_JWT_TTL_MS: "86400000"
+      APP_CRYPTO_KEY: pHQQqThqHaXP64qN49swqzvK7QFd61HoL7ZJOdScBfQ=
+
+volumes:
+  postgres_data:
+    driver: local

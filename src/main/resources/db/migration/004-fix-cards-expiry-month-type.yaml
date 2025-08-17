@@ -1,0 +1,14 @@
+databaseChangeLog:
+  - changeSet:
+      id: 004-fix-cards-expiry-month-type
+      author: кощей бесстыжий ayzek
+      changes:
+        - modifyDataType:
+            tableName: cards
+            columnName: expiry_month
+            newDataType: INTEGER
+      rollback:
+        - modifyDataType:
+            tableName: cards
+            columnName: expiry_month
+            newDataType: SMALLINT

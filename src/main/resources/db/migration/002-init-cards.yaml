@@ -1,0 +1,139 @@
+databaseChangeLog:
+  - changeSet:
+      id: 002-cards
+      author: кощей бесстыжий ayzek
+      changes:
+        - createTable:
+            tableName: cards
+            remarks: "Банковские карты"
+            columns:
+              - column:
+                  name: id
+                  type: BIGINT
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    primaryKeyName: pk_cards
+                    nullable: false
+              - column:
+                  name: number_encrypted
+                  type: VARCHAR(512)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: last4
+                  type: CHAR(4)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: owner_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+              - column:
+                  name: expiry_month
+                  type: SMALLINT
+                  constraints:
+                    nullable: false
+              - column:
+                  name: expiry_year
+                  type: INTEGER
+                  constraints:
+                    nullable: false
+              - column:
+                  name: status
+                  type: VARCHAR(16)
+                  defaultValue: "ACTIVE"
+                  constraints:
+                    nullable: false
+              - column:
+                  name: balance
+                  type: "NUMERIC(18,2)"
+                  defaultValueNumeric: 0.00
+                  constraints:
+                    nullable: false
+              - column:
+                  name: created_at
+                  type: TIMESTAMPTZ
+                  defaultValueComputed: CURRENT_TIMESTAMP
+                  constraints:
+                    nullable: false
+              - column:
+                  name: updated_at
+                  type: TIMESTAMPTZ
+                  defaultValueComputed: CURRENT_TIMESTAMP
+                  constraints:
+                    nullable: false
+
+        - addForeignKeyConstraint:
+            baseTableName: cards
+            baseColumnNames: owner_id
+            referencedTableName: users
+            referencedColumnNames: id
+            onDelete: CASCADE
+            constraintName: fk_cards_owner
+
+        - createIndex:
+            tableName: cards
+            indexName: ix_cards_owner
+            columns:
+              - column:
+                  name: owner_id
+
+        - createIndex:
+            tableName: cards
+            indexName: ix_cards_status
+            columns:
+              - column:
+                  name: status
+
+        - createIndex:
+            tableName: cards
+            indexName: ix_cards_owner_last4
+            columns:
+              - column: { name: owner_id }
+              - column: { name: last4 }
+
+        # CHECK-и через SQL
+        - sql:
+            dbms: postgresql
+            splitStatements: false
+            sql: |
+              ALTER TABLE cards
+              ADD CONSTRAINT chk_cards_expiry_month CHECK (expiry_month BETWEEN 1 AND 12);
+        - sql:
+            dbms: postgresql
+            splitStatements: false
+            sql: |
+              ALTER TABLE cards
+              ADD CONSTRAINT chk_cards_expiry_year CHECK (expiry_year >= 2024);
+        - sql:
+            dbms: postgresql
+            splitStatements: false
+            sql: |
+              ALTER TABLE cards
+              ADD CONSTRAINT chk_cards_status CHECK (status IN ('ACTIVE','BLOCKED','EXPIRED'));
+        - sql:
+            dbms: postgresql
+            splitStatements: false
+            sql: |
+              ALTER TABLE cards
+              ADD CONSTRAINT chk_cards_balance_nonneg CHECK (balance >= 0);
+
+      rollback:
+        - sql:
+            dbms: postgresql
+            splitStatements: false
+            sql: |
+              ALTER TABLE cards
+                DROP CONSTRAINT IF EXISTS chk_cards_balance_nonneg,
+                DROP CONSTRAINT IF EXISTS chk_cards_status,
+                DROP CONSTRAINT IF EXISTS chk_cards_expiry_year,
+                DROP CONSTRAINT IF EXISTS chk_cards_expiry_month;
+        - dropIndex: { tableName: cards, indexName: ix_cards_owner_last4 }
+        - dropIndex: { tableName: cards, indexName: ix_cards_status }
+        - dropIndex: { tableName: cards, indexName: ix_cards_owner }
+        - dropForeignKeyConstraint:
+            baseTableName: cards
+            constraintName: fk_cards_owner
+        - dropTable: { tableName: cards }

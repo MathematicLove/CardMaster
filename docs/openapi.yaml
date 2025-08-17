@@ -1,0 +1,468 @@
+openapi: 3.0.3
+info:
+  title: Bank Cards API
+  version: "1.0.0"
+  description: >
+    Backend для управления банковскими картами. Аутентификация JWT, роли ADMIN/USER,
+    CRUD по картам, фильтрация/пагинация, переводы между своими картами,
+    маскирование номера, шифрование.
+
+servers:
+  - url: http://localhost:8080
+    description: Local dev
+
+tags:
+  - name: Auth
+  - name: Users
+  - name: Cards
+  - name: Transfers
+  - name: Health
+
+paths:
+  /api/health:
+    get:
+      tags: [Health]
+      summary: Проверка статуса
+      responses:
+        "200":
+          description: OK
+
+  /api/auth/login:
+    post:
+      tags: [Auth]
+      summary: Логин и получение JWT
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AuthRequest"
+      responses:
+        "200":
+          description: Успешная аутентификация
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+        "401":
+          description: Неверные учетные данные
+
+  /api/auth/register:
+    post:
+      tags: [Auth]
+      summary: Регистрация пользователя с ролью USER
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateUserRequest"
+      responses:
+        "200":
+          description: Пользователь создан
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserResponse"
+
+  /api/users:
+    get:
+      tags: [Users]
+      summary: Список пользователей (ADMIN)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: "#/components/parameters/page"
+        - $ref: "#/components/parameters/size"
+        - $ref: "#/components/parameters/sort"
+      responses:
+        "200":
+          description: Список пользователей с пагинацией
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PageUserResponse"
+    post:
+      tags: [Users]
+      summary: Создать пользователя (ADMIN)
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateUserRequest"
+      responses:
+        "200":
+          description: Создан
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserResponse"
+
+  /api/users/{id}:
+    get:
+      tags: [Users]
+      summary: Получить пользователя по id (ADMIN)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer, format: int64 }
+      responses:
+        "200":
+          description: ОК
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserResponse"
+        "404": { description: Не найден }
+    delete:
+      tags: [Users]
+      summary: Удалить пользователя (ADMIN)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer, format: int64 }
+      responses:
+        "204": { description: Удалено }
+        "404": { description: Не найден }
+
+  /api/cards:
+    get:
+      tags: [Cards]
+      summary: Список карт (ADMIN видит все, USER — только свои)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - in: query
+          name: ownerId
+          required: false
+          schema: { type: integer, format: int64 }
+          description: Фильтр по владельцу (игнорируется для USER)
+        - in: query
+          name: status
+          required: false
+          schema:
+            $ref: "#/components/schemas/CardStatus"
+        - in: query
+          name: last4
+          required: false
+          schema: { type: string, minLength: 4, maxLength: 4 }
+          description: Последние 4 цифры
+        - $ref: "#/components/parameters/page"
+        - $ref: "#/components/parameters/size"
+        - $ref: "#/components/parameters/sort"
+      responses:
+        "200":
+          description: Список карт с пагинацией
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PageCardResponse"
+    post:
+      tags: [Cards]
+      summary: Создать карту для пользователя (ADMIN)
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CardCreateRequest"
+      responses:
+        "200":
+          description: Создано
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CardResponse"
+
+  /api/cards/{id}:
+    get:
+      tags: [Cards]
+      summary: Получить карту по id (USER — только свою)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer, format: int64 }
+      responses:
+        "200":
+          description: ОК
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CardResponse"
+        "404": { description: Не найдена }
+    put:
+      tags: [Cards]
+      summary: Обновить срок действия карты (ADMIN)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer, format: int64 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CardUpdateRequest"
+      responses:
+        "200":
+          description: Обновлено
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CardResponse"
+    delete:
+      tags: [Cards]
+      summary: Удалить карту (ADMIN)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer, format: int64 }
+      responses:
+        "204": { description: Удалено }
+
+  /api/cards/{id}/status:
+    patch:
+      tags: [Cards]
+      summary: Сменить статус карты (ADMIN)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer, format: int64 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CardStatusUpdateRequest"
+      responses:
+        "200":
+          description: Обновлено
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CardResponse"
+
+  /api/cards/{id}/request-block:
+    post:
+      tags: [Cards]
+      summary: Запрос на блокировку своей карты (USER)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer, format: int64 }
+      responses:
+        "200":
+          description: Заблокирована
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CardResponse"
+
+  /api/transfers:
+    post:
+      tags: [Transfers]
+      summary: Перевод между своими картами (USER)
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TransferRequest"
+      responses:
+        "200":
+          description: Результат перевода
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TransferResponse"
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  parameters:
+    page:
+      in: query
+      name: page
+      required: false
+      schema: { type: integer, minimum: 0, default: 0 }
+    size:
+      in: query
+      name: size
+      required: false
+      schema: { type: integer, minimum: 1, maximum: 200, default: 20 }
+    sort:
+      in: query
+      name: sort
+      required: false
+      schema: { type: string }
+      description: "Напр.: createdAt,desc"
+
+  schemas:
+    Role:
+      type: string
+      enum: [ADMIN, USER]
+
+    CardStatus:
+      type: string
+      enum: [ACTIVE, BLOCKED, EXPIRED]
+
+    AuthRequest:
+      type: object
+      required: [username, password]
+      properties:
+        username: { type: string }
+        password: { type: string, format: password }
+
+    AuthResponse:
+      type: object
+      properties:
+        accessToken: { type: string }
+        tokenType: { type: string, example: Bearer }
+
+    CreateUserRequest:
+      type: object
+      required: [username, password, fullName]
+      properties:
+        username: { type: string }
+        password: { type: string, minLength: 6 }
+        fullName: { type: string }
+        roles:
+          type: array
+          items: { $ref: "#/components/schemas/Role" }
+
+    UserResponse:
+      type: object
+      properties:
+        id: { type: integer, format: int64 }
+        username: { type: string }
+        fullName: { type: string }
+        roles:
+          type: array
+          items: { $ref: "#/components/schemas/Role" }
+        enabled: { type: boolean }
+        createdAt: { type: string, format: date-time }
+
+    CardCreateRequest:
+      type: object
+      required: [ownerId, cardNumber, expiryMonth, expiryYear, balance]
+      properties:
+        ownerId: { type: integer, format: int64 }
+        cardNumber:
+          type: string
+          pattern: "^[0-9]{16}$"
+          description: "16 цифр"
+        expiryMonth:
+          type: integer
+          minimum: 1
+          maximum: 12
+        expiryYear:
+          type: integer
+          minimum: 2024
+        status:
+          $ref: "#/components/schemas/CardStatus"
+        balance:
+          type: number
+          format: double
+          minimum: 0
+
+    CardUpdateRequest:
+      type: object
+      required: [expiryMonth, expiryYear]
+      properties:
+        expiryMonth:
+          type: integer
+          minimum: 1
+          maximum: 12
+        expiryYear:
+          type: integer
+          minimum: 2024
+
+    CardStatusUpdateRequest:
+      type: object
+      required: [status]
+      properties:
+        status:
+          $ref: "#/components/schemas/CardStatus"
+
+    CardResponse:
+      type: object
+      properties:
+        id: { type: integer, format: int64 }
+        ownerId: { type: integer, format: int64 }
+        ownerName: { type: string }
+        maskedNumber: { type: string, example: "**** **** **** 1234" }
+        expiryMonth: { type: integer }
+        expiryYear: { type: integer }
+        status: { $ref: "#/components/schemas/CardStatus" }
+        balance: { type: number, format: double }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+
+    TransferRequest:
+      type: object
+      required: [fromCardId, toCardId, amount]
+      properties:
+        fromCardId: { type: integer, format: int64 }
+        toCardId: { type: integer, format: int64 }
+        amount:
+          type: number
+          format: double
+          minimum: 0.01
+
+    TransferResponse:
+      type: object
+      properties:
+        id: { type: integer, format: int64 }
+        fromCardId: { type: integer, format: int64 }
+        toCardId: { type: integer, format: int64 }
+        amount: { type: number, format: double }
+        createdAt: { type: string, format: date-time }
+        status: { type: string, enum: [SUCCESS, FAILED] }
+
+    PageCardResponse:
+      type: object
+      properties:
+        content:
+          type: array
+          items: { $ref: "#/components/schemas/CardResponse" }
+        totalElements: { type: integer, format: int64 }
+        totalPages: { type: integer }
+        size: { type: integer }
+        number: { type: integer, description: "Текущая страница (0-based)" }
+        last: { type: boolean }
+        first: { type: boolean }
+        numberOfElements: { type: integer }
+
+    PageUserResponse:
+      type: object
+      properties:
+        content:
+          type: array
+          items: { $ref: "#/components/schemas/UserResponse" }
+        totalElements: { type: integer, format: int64 }
+        totalPages: { type: integer }
+        size: { type: integer }
+        number: { type: integer }
+        last: { type: boolean }
+        first: { type: boolean }
+        numberOfElements: { type: integer }

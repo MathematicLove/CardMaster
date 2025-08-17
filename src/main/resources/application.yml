@@ -1,0 +1,22 @@
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5432/CardMaster
+    username: ayzek
+    password: "123"
+  liquibase:
+    change-log: classpath:db/migration/changelog-master.yaml
+  jpa:
+    hibernate:
+      ddl-auto: validate
+  security:
+    user:
+      name: AyzeksBank
+      password: IuseHaskellBTW
+      roles: ADMIN
+
+app:
+  jwt:
+    secret: "8nswcQpoE3eTzWmknTdcaxiaSlbM0VpqDt7hD0QXGGA="
+    ttl-ms: 86400000
+  crypto:
+    key: "pHQQqThqHaXP64qN49swqzvK7QFd61HoL7ZJOdScBfQ="

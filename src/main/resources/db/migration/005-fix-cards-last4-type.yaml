@@ -1,0 +1,9 @@
+databaseChangeLog:
+  - changeSet:
+      id: 005-fix-cards-last4-type
+      author: кощей бесстыжий ayzek
+      changes:
+        - modifyDataType:
+            tableName: cards
+            columnName: last4
+            newDataType: varchar(4)

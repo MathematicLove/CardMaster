@@ -1,0 +1,166 @@
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: postgres-pvc
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: bankcards-secrets
+type: Opaque
+data:
+  postgres-user: YXl6ZWs=
+  postgres-password: MTIz
+
+  spring.security.user.password: SXVzZUhhc2tlbGxCVFc=
+
+  app.jwt.secret: OG5zd2NRcG9FM2VUeldta25UZGNheGlhU2xiTTBWcHFEdDdoRDBRWEdHQT0=
+
+  app.crypto.key: cEhRUXFUaHFIYVhQNjRxTjQ5c3dxenZLN1FGZDYxSG9MN1pKT2RTY0JmUT0=
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: postgres
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgres
+  template:
+    metadata:
+      labels:
+        app: postgres
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:15
+          ports:
+            - containerPort: 5432
+          env:
+            - name: POSTGRES_DB
+              value: "CardMaster"
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef:
+                  name: bankcards-secrets
+                  key: postgres-user
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: bankcards-secrets
+                  key: postgres-password
+          volumeMounts:
+            - name: postgres-storage
+              mountPath: /var/lib/postgresql/data
+      volumes:
+        - name: postgres-storage
+          persistentVolumeClaim:
+            claimName: postgres-pvc
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: db
+spec:
+  type: ClusterIP
+  selector:
+    app: postgres
+  ports:
+    - port: 5432
+      targetPort: 5432
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: bankcards-app
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: bankcards-app
+  template:
+    metadata:
+      labels:
+        app: bankcards-app
+    spec:
+      containers:
+        - name: bankcards-app
+          image: your-docker-registry/bankcards-app:latest
+          ports:
+            - containerPort: 8080
+          env:
+            - name: SPRING_DATASOURCE_URL
+              value: jdbc:postgresql://db:5432/CardMaster
+            - name: SPRING_DATASOURCE_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: bankcards-secrets
+                  key: postgres-user
+            - name: SPRING_DATASOURCE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: bankcards-secrets
+                  key: postgres-password
+
+            - name: SPRING_JPA_HIBERNATE_DDL_AUTO
+              value: validate
+
+            - name: SPRING_SECURITY_USER_NAME
+              value: AyzeksBank
+            - name: SPRING_SECURITY_USER_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: bankcards-secrets
+                  key: spring.security.user.password
+            - name: SPRING_SECURITY_USER_ROLES
+              value: ADMIN
+
+            - name: APP_JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: bankcards-secrets
+                  key: app.jwt.secret
+            - name: APP_JWT_TTL_MS
+              value: "86400000"
+            - name: APP_CRYPTO_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: bankcards-secrets
+                  key: app.crypto.key
+          readinessProbe:
+            httpGet:
+              path: /api/health
+              port: 8080
+            initialDelaySeconds: 20
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /api/health
+              port: 8080
+            initialDelaySeconds: 60
+            periodSeconds: 30
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: bankcards-service
+spec:
+  selector:
+    app: bankcards-app
+  ports:
+    - port: 8080
+      targetPort: 8080
+  type: ClusterIP

@@ -1,0 +1,7 @@
+databaseChangeLog:
+  - logicalFilePath: db/migration/changelog-master.yaml
+  - include: { file: db/migration/001-init-users-and-roles.yaml }
+  - include: { file: db/migration/002-init-cards.yaml }
+  - include: { file: db/migration/003-init-transfers.yaml }
+  - include: { file: db/migration/004-fix-cards-expiry-month-type.yaml }
+  - include: { file: db/migration/005-fix-cards-last4-type.yaml }
