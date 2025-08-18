@@ -129,7 +129,6 @@ Swagger / OpenAPI
 | APP_CRYPTO_KEY                 | Ключ шифрования PAN (Base64/bytes)        | pHQQqThqHaXP64qN49swqzvK7QFd61HoL7ZJOdScBfQ=              |
 | SPRING_PROFILES_ACTIVE         | Активный профиль                          | dev / prod / test                                          |
 
-Примечание: в продакшене секреты хранить в безопасном хранилище (Secrets/Vault).
 
 --------------------------------------------------------------------------------
 
